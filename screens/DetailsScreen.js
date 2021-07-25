@@ -15,6 +15,7 @@ export default function ShowScreen({ navigation, route }) {
 
   useEffect(() => {
     const userId = route.params.userId;
+    const id = route.params.id;
     const currentUserId = route.params.currentUserId;
     if (userId == currentUserId) {
       navigation.setOptions({
