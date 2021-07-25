@@ -1,25 +1,34 @@
+import React, { useState } from "react";
+import { View, Text, TextInput } from "react-native";
+import { TouchableOpacity, UIManager, LayoutAnimation } from "react-native";
+import { ActivityIndicator, Keyboard } from "react-native";
+import { API, API_LOGIN, API_SIGNUP } from "../constants/API";
+import axios from "axios";
+import { useSelector, useDispatch } from "react-redux";
+import { logInAction } from "../redux/ducks/blogAuth";
+import { commonStyles, darkStyles, lightStyles } from "../styles/commonStyles";
 
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, UIManager, LayoutAnimation, ActivityIndicator, Keyboard } from 'react-native';
-import { API, API_LOGIN, API_SIGNUP } from '../constants/API';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 } //Needs to be manually enabled for android
 
 export default function SignInSignUpScreen({ navigation }) {
-
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [errorText, setErrorText] = useState('')
+  const [username, setUsername] = useState("U2");
+  const [password, setPassword] = useState("P2");
+  const [password2, setPassword2] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isLogIn, setIsLogIn] = useState(true);
+  const [errorText, setErrorText] = useState("");
+  const dispatch = useDispatch();
+  const isDark = useSelector((state) => state.pref.isDark);
+  const styles = { ...commonStyles, ...(isDark ? darkStyles : lightStyles) };
 
   async function login() {
     console.log("---- Login time ----");
     Keyboard.dismiss();
-
     try {
       setLoading(true);
       const response = await axios.post(API + API_LOGIN, {
@@ -27,8 +36,7 @@ export default function SignInSignUpScreen({ navigation }) {
         password,
       });
       console.log("Success logging in!");
-      // console.log(response);
-      await AsyncStorage.setItem("token", response.data.access_token);
+      dispatch({ ...logInAction(), payload: response.data.access_token });
       setLoading(false);
       setUsername("");
       setPassword("");
@@ -38,16 +46,48 @@ export default function SignInSignUpScreen({ navigation }) {
       console.log("Error logging in!");
       console.log(error);
       setErrorText(error.response.data.description);
-      if (error.response.status = 404) {
-        setErrorText("User does not exist")
+      if ((error.response.status = 404)) {
+        setErrorText("User does not exist");
       }
     }
   }
 
+  async function signup() {
+    console.log("---- Sign Up time ----");
+    Keyboard.dismiss();
+    if (password == password2) {
+      try {
+        setLoading(true);
+        const response = await axios.post(API + API_SIGNUP, {
+          username,
+          password,
+        });
+        console.log("Success signing up!");
+        console.log(response);
+        if (response.data.Error) {
+          setErrorText(response.data.Error);
+          setLoading(false);
+        } else {
+          console.log("Signed up!");
+          setLoading(false);
+          login();
+          setIsLogIn(true);
+        }
+      } catch (error) {
+        setLoading(false);
+        console.log("Error signing up!");
+        console.log(error);
+        setErrorText(error.response.data.description);
+      }
+    } else {
+      setErrorText("Password mismatch");
+    }
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        Log In
+    <View style={styles.container2}>
+      <Text style={[styles.title, { margin: 20 }]}>
+        {isLogIn ? "Log In" : "Sign Up"}
       </Text>
       <View style={styles.inputView}>
         <TextInput
@@ -58,7 +98,6 @@ export default function SignInSignUpScreen({ navigation }) {
           onChangeText={(username) => setUsername(username)}
         />
       </View>
-  
       <View style={styles.inputView}>
         <TextInput
           style={styles.textInput}
@@ -69,65 +108,56 @@ export default function SignInSignUpScreen({ navigation }) {
           onChangeText={(pw) => setPassword(pw)}
         />
       </View>
-      <View/>
+      {isLogIn ? (
+        <View />
+      ) : (
+        <View style={styles.inputView}>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Confirm Password:"
+            placeholderTextColor="#003f5c"
+            secureTextEntry={true}
+            value={password2}
+            onChangeText={(pw) => setPassword2(pw)}
+          />
+        </View>
+      )}
+      <View />
       <View>
-        <View style={{flexDirection: "row"}}>
-          <TouchableOpacity style={styles.button} onPress={login}>
-            <Text style={styles.buttonText}> Log In </Text>
+        <View style={{ flexDirection: "row" }}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={isLogIn ? login : signup}
+          >
+            <Text style={styles.buttonText}>
+              {" "}
+              {isLogIn ? "Log In" : "Sign Up"}{" "}
+            </Text>
           </TouchableOpacity>
-          {loading ? <ActivityIndicator style={{ marginLeft: 10 }}/> : <View/>}
+          {loading ? (
+            <ActivityIndicator style={{ marginLeft: 10 }} />
+          ) : (
+            <View />
+          )}
         </View>
       </View>
-      <Text style={styles.errorText}>
-        {errorText}
-      </Text>
+      <TouchableOpacity
+        onPress={() => {
+          LayoutAnimation.configureNext({
+            duration: 700,
+            create: { type: "linear", property: "opacity" },
+            update: { type: "spring", springDamping: 0.4 },
+          });
+          setIsLogIn(!isLogIn);
+          setErrorText("");
+        }}
+      >
+        <Text style={[styles.text, { margin: 20, fontSize: 20 }]}>
+          {" "}
+          {isLogIn ? "To Sign Up page" : "To Sign In page"}{" "}
+        </Text>
+      </TouchableOpacity>
+      <Text style={styles.errorText}>{errorText}</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontWeight: 'bold',
-    fontSize: 40, 
-    margin: 20
-  },
-  switchText: {
-    fontWeight: '400',
-    fontSize: 20, 
-    marginTop: 20
-  },
-  inputView: {
-    backgroundColor: "#FFC0CB",
-    borderRadius: 30,
-    width: "70%",
-    height: 45,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  textInput: {
-    height: 50,
-    flex: 1,
-    padding: 10,
-  },
-  button: {
-    backgroundColor: 'blue',
-    borderRadius: 25,
-  },
-  buttonText: {
-    fontWeight: '400',
-    fontSize: 20, 
-    margin: 20,
-    color: 'white'
-  },
-  errorText: {
-    fontSize: 15,
-    color: 'red',
-    marginTop: 20
-  }
-});
